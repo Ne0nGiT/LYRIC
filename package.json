@@ -1,0 +1,29 @@
+{
+  "name": "lyric",
+  "productName": "LYRIC",
+  "version": "1.0.0",
+  "description": "LYRIC - karaoke lời bài hát",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win nsis --publish never"
+  },
+  "build": {
+    "appId": "com.lyric.player",
+    "productName": "LYRIC",
+    "files": ["main.js", "index.html"],
+    "win": {
+      "icon": "icon.png",
+      "target": [{ "target": "nsis", "arch": ["x64"] }]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "LYRIC-Setup-${version}.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "33.2.0",
+    "electron-builder": "25.1.8"
+  }
+}
