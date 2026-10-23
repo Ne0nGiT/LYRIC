@@ -2,7 +2,7 @@
   "name": "lyric",
   "productName": "LYRIC",
   "version": "1.0.1",
-  "description": "LYRIC YOUR SONGS",
+  "description": "LYRIC - LYRIC YOUR SONGS",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -19,6 +19,7 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "include": "installer.nsh",
       "multiLanguageInstaller": true,
       "installerLanguages": ["vi_VN", "en_US"],
       "displayLanguageSelector": true,
