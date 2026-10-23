@@ -2,7 +2,7 @@
   "name": "lyric",
   "productName": "LYRIC",
   "version": "1.0.1",
-  "description": "LYRIC",
+  "description": "LYRIC - karaoke lời bài hát",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -19,6 +19,9 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "multiLanguageInstaller": true,
+      "installerLanguages": ["vi_VN", "en_US"],
+      "displayLanguageSelector": true,
       "artifactName": "LYRIC-Setup-${version}.exe"
     }
   },
