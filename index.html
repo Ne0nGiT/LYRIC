@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Karaoke lời bài hát</title>
+<title>LYRIC</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
@@ -35,8 +35,8 @@ footer{background:var(--bar);padding:12px 18px;display:flex;align-items:center;g
 #seek{flex:1;accent-color:var(--acc);height:28px;min-width:0}
 .t{font-variant-numeric:tabular-nums;font-size:13px;color:var(--mid);min-width:40px;text-align:center}
 #play{width:46px;height:46px;border-radius:50%;padding:0;background:#232c42;border-color:var(--acc);color:var(--hi);font-size:16px}
-#eq,#vp,#lib{position:absolute;left:0;right:0;bottom:0;z-index:3;background:var(--bar);border-top:1px solid #222b3c;padding:12px 14px 14px;transform:translateY(100%);visibility:hidden;transition:transform .35s cubic-bezier(.2,.8,.2,1),visibility 0s .35s}
-#eq.open,#vp.open,#lib.open{transform:none;visibility:visible;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+#eq,#vp,#lib,#th{position:absolute;left:0;right:0;bottom:0;z-index:3;background:var(--bar);border-top:1px solid #222b3c;padding:12px 14px 14px;transform:translateY(100%);visibility:hidden;transition:transform .35s cubic-bezier(.2,.8,.2,1),visibility 0s .35s}
+#eq.open,#vp.open,#lib.open,#th.open{transform:none;visibility:visible;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
 .eqh{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-size:14px}
 .tabs{flex:1;display:flex;gap:6px;min-width:150px}
 .tab{padding:7px 12px;font-size:13px}
@@ -70,7 +70,7 @@ body.kara .ln{font-size:calc(clamp(28px,6vw,64px)*var(--fs,1))}
 #kx{display:none;position:fixed;top:calc(12px + env(safe-area-inset-top,0px));right:14px;z-index:9;opacity:.55}
 #kx:hover{opacity:1}
 body.kara #kx{display:block}
-#lib{max-height:80%;overflow-y:auto}
+#lib,#th{max-height:80%;overflow-y:auto}
 .lt{padding:7px 12px;font-size:13px}.lt.on{background:#232c42;border-color:var(--acc)}
 #lq[hidden],#lal[hidden]{display:none}
 .qi{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:14px;color:var(--mid)}
@@ -87,6 +87,8 @@ body.kara #kx{display:block}
 .row input[type=text]{flex:1;min-width:0;font:inherit;font-size:14px;color:var(--hi);background:#0f1521;border:1px solid #2a3345;border-radius:8px;padding:8px}
 #lme[hidden],#lmb[hidden]{display:none}
 .alc .e{position:absolute;top:4px;left:4px;padding:2px 8px;font-size:12px;background:rgba(0,0,0,.65)}
+input[type=color]{width:42px;height:34px;padding:0;border:1px solid #2a3345;border-radius:8px;background:none;cursor:pointer;flex-shrink:0}
+.row input[type=text][aria-invalid=true]{border-color:#c0504d}
 input[type=file]{display:none}
 </style>
 </head>
@@ -94,6 +96,7 @@ input[type=file]{display:none}
 <div id="app">
   <header>
     <div id="title">Chưa có bài nào</div>
+    <button id="thb" type="button">Giao diện</button>
     <button id="lbb" type="button">Thư viện</button>
     <button id="aub" type="button" aria-expanded="false">Âm thanh</button>
     <button id="fs" type="button" aria-label="Toàn màn hình" title="Toàn màn hình" style="display:flex;padding:9px 11px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
@@ -132,6 +135,19 @@ input[type=file]{display:none}
         <label class="row"><span>Tốc độ</span><select id="sp"><option value="0.75">0.75x</option><option value="0.9">0.9x</option><option value="1" selected>1x</option><option value="1.1">1.1x</option><option value="1.25">1.25x</option></select></label>
         <button id="clr" type="button" class="tab">Xóa bài đã lưu</button>
       </div>
+    </div>
+    <div id="th">
+      <div class="eqh">
+        <div class="tabs"><span style="font-size:14px;color:var(--hi)">Giao diện</span></div>
+        <button id="thx" type="button" aria-label="Đóng">✕</button>
+      </div>
+      <div class="rows">
+        <label class="row"><span>Gradient</span><input type="checkbox" id="thg"><small>Bật (cần 2 màu)</small></label>
+        <div class="row"><span>Màu nền</span><input type="color" id="thc1" aria-label="Chọn màu nền"><input type="text" id="thh1" placeholder="#0c1018 hoặc rgb(12,16,24)" spellcheck="false" autocomplete="off"></div>
+        <div class="row" id="thr2"><span>Màu 2</span><input type="color" id="thc2" aria-label="Chọn màu thứ hai"><input type="text" id="thh2" placeholder="#243b6b hoặc rgb(36,59,107)" spellcheck="false" autocomplete="off"></div>
+        <div class="row"><span>Ảnh nền</span><label class="btn" for="thf">Chọn ảnh từ máy</label><button id="thrm" type="button">Bỏ ảnh</button></div>
+      </div>
+      <div id="thst" style="font-size:13px;color:var(--mid);margin-top:10px;min-height:1.2em"></div>
     </div>
     <div id="lib">
       <div class="eqh">
@@ -184,6 +200,7 @@ input[type=file]{display:none}
 <input id="fa" type="file" webkitdirectory multiple>
 <input id="mcf" type="file" accept="image/*">
 <input id="acf" type="file" accept="image/*">
+<input id="thf" type="file" accept="image/*">
 <audio id="au" preload="auto"></audio>
 <script>
 const $=id=>document.getElementById(id);
@@ -471,7 +488,7 @@ let lastTab='eq';
 function sheet(name,open){
   if(name)lastTab=name;
   for(const k in sheets)sheets[k].classList.toggle('open',!!open&&k===name);
-  if(open)$('lib').classList.remove('open');
+  if(open){$('lib').classList.remove('open');$('th').classList.remove('open')}
   $('aub').setAttribute('aria-expanded',String(!!open&&!!name));
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===lastTab));
 }
@@ -543,7 +560,7 @@ function setKara(on){
   kOn=on;
   document.body.classList.toggle('kara',on);
   $('ko').checked=on;
-  if(on){initAudio();sheet(null,false);$('lib').classList.remove('open')}
+  if(on){initAudio();sheet(null,false);$('lib').classList.remove('open');$('th').classList.remove('open')}
   wire();
   if(ctx&&ctx.state==='suspended')ctx.resume();
 }
@@ -643,7 +660,7 @@ function renderAl(){
 }
 function libShow(o,tab){
   if(tab)libTab=tab;
-  if(o)sheet(null,false);
+  if(o){sheet(null,false);$('th').classList.remove('open')}
   $('lib').classList.toggle('open',o);
   $('lq').hidden=libTab!=='q';$('lal').hidden=libTab!=='al';$('lme').hidden=libTab!=='m';$('lmb').hidden=libTab!=='b';
   $('lan').hidden=libTab!=='q';$('lad').hidden=libTab!=='al';
@@ -922,8 +939,62 @@ $('clr').onclick=()=>{
   try{indexedDB.deleteDatabase('karaoke-player');localStorage.removeItem(LS+'-pos')}catch(e){}
   Q=[];ALB=[];qi=-1;renderQ();renderAl();$('clr').textContent='Đã xóa';
 };
+
+/* ===== Giao diện: màu nền, gradient, ảnh nền (lưu riêng, không bị "Xóa bài đã lưu") ===== */
+let TH={g:false,c1:'#0c1018',c2:'#243b6b'},bgB=null,bgU=null;
+function parseColor(x){
+  x=String(x).trim().toLowerCase();
+  let m=x.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/);
+  if(m){let h=m[1];if(h.length===3)h=h.split('').map(c=>c+c).join('');return '#'+h}
+  m=x.match(/^(?:rgb\(\s*)?(\d{1,3})\s*[, ]\s*(\d{1,3})\s*[, ]\s*(\d{1,3})\s*\)?$/);
+  if(m){const v=[m[1],m[2],m[3]].map(Number);if(v.every(n=>n<=255))return '#'+v.map(n=>n.toString(16).padStart(2,'0')).join('')}
+  return null;
+}
+function thDb(){return new Promise((res,rej)=>{const r=indexedDB.open('lyric-theme',1);r.onupgradeneeded=()=>r.result.createObjectStore('k');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function thSet(v){try{const db=await thDb();await new Promise((res,rej)=>{const t=db.transaction('k','readwrite');if(v)t.objectStore('k').put(v,'bg');else t.objectStore('k').delete('bg');t.oncomplete=res;t.onerror=()=>rej(t.error)});db.close()}catch(e){}}
+function thUrl(){if(bgU)URL.revokeObjectURL(bgU);bgU=bgB?URL.createObjectURL(bgB):null}
+async function thLoadImg(){
+  try{
+    const db=await thDb();
+    const v=await new Promise((res,rej)=>{const r=db.transaction('k').objectStore('k').get('bg');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+    db.close();
+    if(v){bgB=v;thUrl();thApply();thUi()}
+  }catch(e){}
+}
+function thSave(){try{localStorage.setItem(LS+'-theme',JSON.stringify(TH))}catch(e){}}
+function thApply(){
+  const b=document.body.style;
+  b.backgroundImage=bgU?'url("'+bgU+'")':(TH.g?'linear-gradient(135deg,'+TH.c1+','+TH.c2+')':'none');
+  b.backgroundColor=TH.c1;b.backgroundSize='cover';b.backgroundPosition='center';b.backgroundRepeat='no-repeat';b.backgroundAttachment='fixed';
+}
+function thUi(){
+  $('thg').checked=TH.g;
+  $('thc1').value=TH.c1;$('thh1').value=TH.c1;$('thc2').value=TH.c2;$('thh2').value=TH.c2;
+  ['thh1','thh2'].forEach(i=>$(i).setAttribute('aria-invalid','false'));
+  $('thr2').style.display=TH.g?'':'none';
+  $('thrm').style.display=bgB?'':'none';
+  $('thst').textContent=bgB?'Đang dùng ảnh làm nền, ảnh che màu nền và gradient. Bấm "Bỏ ảnh" để quay lại màu.':'';
+}
+function thColor(i){
+  const t=$('thh'+i),p=$('thc'+i);
+  t.oninput=()=>{const c=parseColor(t.value);t.setAttribute('aria-invalid',c?'false':'true');if(c){TH['c'+i]=c;p.value=c;thApply();thSave()}};
+  p.oninput=()=>{TH['c'+i]=p.value;t.value=p.value;t.setAttribute('aria-invalid','false');thApply();thSave()};
+}
+thColor(1);thColor(2);
+$('thg').onchange=e=>{TH.g=e.target.checked;$('thr2').style.display=TH.g?'':'none';thApply();thSave()};
+$('thf').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;bgB=f;thUrl();thSet(f);thApply();thUi()};
+$('thrm').onclick=()=>{bgB=null;thUrl();thSet(null);thApply();thUi()};
+function thShow(o){if(o){sheet(null,false);libShow(false);thUi()}$('th').classList.toggle('open',o)}
+$('thb').onclick=()=>thShow(!$('th').classList.contains('open'));
+$('thx').onclick=()=>thShow(false);
+try{
+  const s=JSON.parse(localStorage.getItem(LS+'-theme')||'null');
+  if(s){if(typeof s.g==='boolean')TH.g=s.g;if(parseColor(s.c1))TH.c1=parseColor(s.c1);if(parseColor(s.c2))TH.c2=parseColor(s.c2)}
+}catch(e){}
+thApply();thUi();
+
 (async()=>{
-  loadSettings();
+  loadSettings();thLoadImg();
   ALB=(await idbGet('alb'))||[];Q=(await idbGet('q'))||[];resolveQ();
   const a=await idbGet('audio'),l=await idbGet('lyrics');
   if(a)qi=Q.findIndex(x=>x.a.size===a.size&&x.a.name===a.name);
