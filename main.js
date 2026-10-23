@@ -1,5 +1,16 @@
 const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
+const fs = require('fs');
+
+// Ngôn ngữ đã chọn lúc cài đặt (file lang.txt do bộ cài ghi cạnh LYRIC.exe)
+function installLang() {
+  try {
+    const f = path.join(path.dirname(process.execPath), 'lang.txt');
+    const l = fs.readFileSync(f, 'utf8').trim().toLowerCase().slice(0, 2);
+    if (l === 'vi' || l === 'en') return { lang: l, t: String(Math.floor(fs.statSync(f).mtimeMs)) };
+  } catch (e) {}
+  return null;
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -12,7 +23,8 @@ function createWindow() {
     webPreferences: { contextIsolation: true, nodeIntegration: false }
   });
   Menu.setApplicationMenu(null);
-  win.loadFile(path.join(__dirname, 'index.html'));
+  const il = installLang();
+  win.loadFile(path.join(__dirname, 'index.html'), il ? { query: { lang: il.lang, t: il.t } } : undefined);
 }
 
 app.whenReady().then(() => {
