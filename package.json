@@ -1,7 +1,7 @@
 {
   "name": "lyric",
   "productName": "LYRIC",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "LYRIC - LYRIC YOUR SONGS",
   "main": "main.js",
   "scripts": {
