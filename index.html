@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Karaoke lời bài hát</title>
+<title>LYRIC</title>
 <style>
 :root{color-scheme:dark;--bg:#0c1018;--dim:#4f5a70;--mid:#8794ad;--hi:#e9eefb;--acc:#7f93d6;--bar:#151b28;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -1166,7 +1166,6 @@ async function findLyr(title,artist,dur,raw){
     const c=(Array.isArray(a)?a:a?[a]:[]).filter(x=>x&&x.syncedLyrics&&!x.instrumental);
     if(!c.length)return null;
     if(dur)c.sort((x,y)=>Math.abs(x.duration-dur)-Math.abs(y.duration-dur));
-    if(dur&&Math.abs(c[0].duration-dur)>6)return null;
     return c[0].syncedLyrics;
   };
   const tries=[];
@@ -1175,7 +1174,8 @@ async function findLyr(title,artist,dur,raw){
   if(raw)tries.push(B+'search?q='+E(raw));
   let net=false;
   for(const u of tries){
-    const r=await jget(u);
+    let r=await jget(u);
+    if(r===undefined)r=await jget(u);
     if(r===undefined)return net?null:undefined;
     net=true;
     const x=pick(r);if(x)return x;
