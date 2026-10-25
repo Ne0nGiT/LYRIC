@@ -784,7 +784,9 @@ function libShow(o,tab){
   document.querySelectorAll('.lt').forEach(b=>b.classList.toggle('on',b.dataset.p===(libTab==='pc'?'pl':libTab)));
 }
 /* ===== Metadata: đọc tag ID3 + chỉnh sửa (lưu trong thư viện của player) ===== */
-const mf=(t,k)=>(t.m&&t.m[k])||(t.tg&&t.tg[k])||'';
+/* tag bị hỏng dấu (ví dụ "M?y Khi") thì bỏ qua, dùng tên file; tag tự sửa trong app luôn được giữ */
+const badTag=v=>/[A-Za-z\u00C0-\u1EF9]\?[A-Za-z\u00C0-\u1EF9]/.test(v);
+const mf=(t,k)=>{const u=t.m&&t.m[k];if(u)return u;const v=(t.tg&&t.tg[k])||'';return badTag(v)?'':v};
 const dn=t=>{const a=mf(t,'ar'),n=mf(t,'t')||t.n;return a?n+' — '+a:n};
 async function getTags(file){
   try{
