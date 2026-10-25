@@ -107,8 +107,9 @@ body.fsc #clk{display:block}
 body.fsc.kara #clk{left:16px;transform:none;top:calc(12px + env(safe-area-inset-top,0px));font-size:18px;opacity:.7}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:12;background:var(--bar);border:1px solid #2a3345;border-radius:10px;padding:8px 14px;font-size:13px;color:var(--hi);opacity:0;pointer-events:none;transition:opacity .25s;max-width:88vw;text-align:center}
 #toast.on{opacity:1}
-#lpl[hidden],#lpc[hidden]{display:none}
+#lpl[hidden],#lpc[hidden],#lsc[hidden]{display:none}
 .pcl{max-height:40vh;overflow-y:auto}
+#sq{width:100%;box-sizing:border-box;margin:0 0 10px;padding:8px 12px;border-radius:10px;border:1px solid #2a3345;background:#141a27;color:var(--hi);font:inherit;font-size:14px}
 .pch{font-size:12px;color:var(--mid);padding:10px 10px 4px}
 .pcr{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;font-size:14px;color:var(--mid);cursor:pointer}
 .pcr:hover{background:#1b2333}
@@ -189,7 +190,17 @@ body.fsc.kara #clk{left:16px;transform:none;top:calc(12px + env(safe-area-inset-
         <button id="lpn" type="button" class="btn" hidden>Tạo playlist</button>
         <button id="lbx" type="button" aria-label="Đóng">✕</button>
       </div>
+      <input id="sq" type="search" placeholder="Tìm bài, album..." aria-label="Tìm bài, album..." autocomplete="off">
       <div id="lq"></div>
+      <div id="lsc" class="rows" hidden>
+        <label class="row"><span>Thư mục nhạc</span><input type="checkbox" id="lsOn"><small>Tự quét nhạc và album trong thư mục</small></label>
+        <label class="row"><span>Tự quét lại</span><input type="checkbox" id="lsAuto"><small>Quét lại khi thư mục có thay đổi</small></label>
+        <label class="row"><span>Lưu lời online</span><input type="checkbox" id="lsSave"><small>Lưu lời tìm được thành file .lrc cạnh bài</small></label>
+        <label class="row"><span>Discord</span><input type="checkbox" id="lsRpc"><small>Hiện bài đang nghe trên Discord</small></label>
+        <div id="lsDir" style="font-size:12px;color:var(--mid);padding:6px 4px;word-break:break-all"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 8px"><button id="lsPick" type="button">Đổi thư mục</button><button id="lsNow" type="button">Quét lại ngay</button></div>
+        <div id="lsSt" style="font-size:13px;color:var(--mid);min-height:1.2em;margin-bottom:10px"></div>
+      </div>
       <div id="lal" class="alg"></div>
       <div id="lpl" hidden></div>
       <div id="lpc" hidden>
@@ -252,6 +263,7 @@ body.fsc.kara #clk{left:16px;transform:none;top:calc(12px + env(safe-area-inset-
 const $=id=>document.getElementById(id);
 const au=$('au'),box=$('lyrics'),seek=$('seek'),play=$('play');
 let lines=[],els=[],active=-1,raf=0,seeking=false,sa=0,userT=0,hideL=false;
+let SQ='';const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d');
 const reduced=()=>matchMedia('(prefers-reduced-motion:reduce)').matches;
 function glide(to){
   cancelAnimationFrame(sa);
@@ -397,6 +409,7 @@ async function getCover(file){
   }catch(e){return null}
 }
 function updateStage(){
+  msUpdate();rpcSched();
   if(cvLast!==coverUrl){cvLast=coverUrl;cvTheme()}
   const c=$('cov'),has=!!au.src,noLy=!lines.length||hideL;
   if(has&&noLy){
@@ -655,13 +668,17 @@ function addToQueue(t){
 async function playTrack(i){
   const t=Q[i];if(!t)return;
   qi=i;pendCv=t.cv||null;renderQ();
-  await load([t.a,t.l].filter(Boolean),false,true);
+  let fa,fl;const my=++plTok;
+  try{fa=await realize(t.a);fl=t.l?await realize(t.l).catch(()=>null):null}
+  catch(e){if(my===plTok)toast(tr('Không đọc được file nhạc (có thể đã bị xóa hoặc di chuyển)'));return}
+  if(my!==plTok)return;
+  await load([fa,fl].filter(Boolean),false,true);
   au.play().catch(()=>{});
 }
-function playAlbum(id){
+function playAlbum(id,i0){
   const al=ALB.find(x=>x.id===id);if(!al)return;
   Q=al.tracks.map((s,i)=>({...s,ref:[id,i],cv:al.cover}));
-  saveQ();playTrack(0);
+  saveQ();playTrack(i0||0);
 }
 function ingest(files){
   files=[...files];
@@ -708,6 +725,7 @@ function renderQ(){
   const q=$('lq');q.innerHTML='';
   if(!Q.length){q.innerHTML='<div class="empty">'+tr('Hàng chờ trống. Bài nào bạn nghe sẽ tự được thêm vào đây.')+'</div>';return}
   Q.forEach((t,i)=>{
+    if(SQ&&!norm(dn(t)).includes(SQ))return;
     const r=document.createElement('div');r.className='qi'+(i===qi?' on':'');
     const s=document.createElement('span');s.textContent=(i===qi?'▶ ':'')+dn(t);
     const x=document.createElement('button');x.type='button';x.textContent='✕';x.setAttribute('aria-label',tr('Xóa khỏi hàng chờ'));
@@ -725,6 +743,7 @@ function renderAl(){
   const g=$('lal');g.innerHTML='';
   if(!ALB.length){g.innerHTML='<div class="empty">'+tr('Chưa có album. Bấm "Thêm album" rồi chọn một thư mục nhạc.')+'</div>';return}
   ALB.forEach(al=>{
+    if(SQ&&!norm(al.name).includes(SQ)&&!al.tracks.some(t=>norm(t.n).includes(SQ)))return;
     const c=document.createElement('div');c.className='alc';
     const im=document.createElement('img');im.alt='';
     if(al.cover){const u=URL.createObjectURL(al.cover);alUrls.push(u);im.src=u}else im.src=NOCOV;
@@ -741,6 +760,19 @@ function renderAl(){
     ed.onclick=e=>{e.stopPropagation();openAlb(al.id)};
     c.append(im,b,m,ed,x);g.appendChild(c);
   });
+  if(SQ.length>=2){
+    const hits=[];
+    ALB.forEach(al=>al.tracks.forEach((t,i)=>{if(hits.length<60&&norm(t.n).includes(SQ))hits.push([al,i,t])}));
+    if(hits.length){
+      const h=document.createElement('div');h.className='pch';h.style.gridColumn='1/-1';h.textContent=tr('Bài hát')+' ('+hits.length+')';g.appendChild(h);
+      hits.forEach(([al,i,t])=>{
+        const r=document.createElement('div');r.className='qi';r.style.gridColumn='1/-1';
+        const s=document.createElement('span');s.textContent=t.n+' · '+al.name;
+        r.onclick=()=>{playAlbum(al.id,i);libShow(false)};
+        r.appendChild(s);g.appendChild(r);
+      });
+    }
+  }
 }
 function libShow(o,tab){
   if(tab)libTab=tab;
@@ -748,7 +780,7 @@ function libShow(o,tab){
   $('lib').classList.toggle('open',o);
   $('lq').hidden=libTab!=='q';$('lal').hidden=libTab!=='al';$('lme').hidden=libTab!=='m';$('lmb').hidden=libTab!=='b';
   $('lan').hidden=libTab!=='q';$('lad').hidden=libTab!=='al';
-  $('lpl').hidden=libTab!=='pl';$('lpc').hidden=libTab!=='pc';$('lpn').hidden=libTab!=='pl';
+  $('lpl').hidden=libTab!=='pl';$('lpc').hidden=libTab!=='pc';$('lpn').hidden=libTab!=='pl';$('lsc').hidden=!window.lyricApp||libTab!=='al';
   document.querySelectorAll('.lt').forEach(b=>b.classList.toggle('on',b.dataset.p===(libTab==='pc'?'pl':libTab)));
 }
 /* ===== Metadata: đọc tag ID3 + chỉnh sửa (lưu trong thư viện của player) ===== */
@@ -928,6 +960,7 @@ function tagWav(t,buf){
   return cat([u8('RIFF'),le32(4+rest.length+list.length),u8('WAVE'),rest,list]);
 }
 async function tagged(t){
+  if(t.a&&t.a.lazy)t={...t,a:await realize(t.a)};
   const m4=String.fromCharCode(...new Uint8Array(await t.a.slice(0,4).arrayBuffer()));
   const cv=t.m&&t.m.cv?new Uint8Array(await t.m.cv.arrayBuffer()):null;
   if(m4==='fLaC')return {ext:'flac',data:tagFlac(t,new Uint8Array(await t.a.arrayBuffer()),cv)};
@@ -1200,6 +1233,8 @@ async function lyrAuto(tq,a,tgP){
     lines=p;render();updateStage();active=-2;tick();
     idbSet('lyrics',new File([syn],'online.lrc',{type:'text/plain'}));
     toast(tr('Đã tìm thấy lời online'));
+    const fp=a&&a._p;
+    if(fp&&LB.save&&window.lyricApp&&window.lyricApp.saveLyric)window.lyricApp.saveLyric(fp,syn).catch(()=>{});
   }catch(e){}
 }
 
@@ -1226,6 +1261,7 @@ function renderPl(){
   const g=$('lpl');g.innerHTML='';
   if(!PL.length){g.innerHTML='<div class="empty">'+tr('Chưa có playlist. Bấm "Tạo playlist" hoặc nhấn Ctrl+N+P.')+'</div>';return}
   PL.forEach(p=>{
+    if(SQ&&!norm(p.name).includes(SQ))return;
     const r=document.createElement('div');r.className='qi';
     const s=document.createElement('span');s.textContent=p.name+' · '+p.items.length+' '+tr('bài');
     const ed=document.createElement('button');ed.type='button';ed.textContent='✎';ed.setAttribute('aria-label',tr('Sửa playlist'));
@@ -1290,7 +1326,7 @@ $('pcs').onclick=()=>{
 
 /* ===== Ngôn ngữ (Tiếng Việt / English) + màn hình loading ===== */
 const EN={"Chưa có bài nào": "No track yet", "Giao diện": "Appearance", "Thư viện": "Library", "Âm thanh": "Audio", "Toàn màn hình": "Fullscreen", "Ảnh bìa": "Cover art", "Không có cover, lời": "No cover or lyrics", "Thả nhạc và lời vào đây": "Drop music and lyrics here", "Kéo thả cùng lúc 1 file nhạc (mp3, wav, flac...) và 1 file lời (.lrc hoặc .srt). Trên điện thoại thì bấm nút bên dưới rồi chọn cả hai file.": "Drag and drop 1 music file (mp3, wav, flac...) and 1 lyrics file (.lrc or .srt) at once. On a phone, tap the button below and select both files.", "Chọn nhạc và lời": "Choose music and lyrics", "Thoát karaoke": "Exit karaoke", "Hiệu ứng nền": "Background effect", "Hiệu ứng: Tắt": "Effect: Off", "Thanh tần số": "Frequency bars", "Thanh đối xứng": "Mirrored bars", "Vòng tròn": "Circle", "Sóng âm": "Waveform", "Đóng": "Close", "Chế độ Karaoke": "Karaoke mode", "Tắt giọng hát trong nhạc và chỉ hiện lời chữ to. Thoát bằng nút góc phải hoặc phím Esc. Rê chuột xuống dưới để hiện thanh phát nhạc.": "Removes the vocals from the music and shows only large lyrics. Exit with the button in the corner or the Esc key. Move the mouse to the bottom to show the player bar.", "Màu": "Color", "Xanh tím": "Blue-violet", "Xanh ngọc": "Teal", "Tím": "Violet", "Trắng": "White", "Độ nhạy": "Sensitivity", "Cỡ chữ lời": "Lyrics size", "Lệch lời": "Lyrics offset", "Tốc độ": "Speed", "Xóa bài đã lưu": "Clear saved tracks", "Ngôn ngữ": "Language", "Bật (cần 2 màu)": "On (needs 2 colors)", "Màu nền": "Background color", "#0c1018 hoặc rgb(12,16,24)": "#0c1018 or rgb(12,16,24)", "#243b6b hoặc rgb(36,59,107)": "#243b6b or rgb(36,59,107)", "Chọn màu nền": "Pick background color", "Màu 2": "Color 2", "Chọn màu thứ hai": "Pick second color", "Ảnh nền": "Background image", "Chọn ảnh từ máy": "Choose image from device", "Bỏ ảnh": "Remove image", "Hàng chờ": "Queue", "Thêm nhạc": "Add music", "Thêm album": "Add album", "Tên bài": "Title", "Nghệ sĩ": "Artist", "Chọn ảnh": "Choose image", "Lưu": "Save", "Hủy": "Cancel", "Bỏ chỉnh sửa": "Reset edits", "Ghi tag vào file nhạc (tải .zip)": "Write tags to music file (download .zip)", "Tên album": "Album name", "Bật": "On", "Đặt lại": "Reset", "Tùy chỉnh": "Custom", "Phẳng (Flat)": "Flat", "Bass mạnh": "Strong bass", "Treble sáng": "Bright treble", "Cổ điển": "Classical", "Bài trước": "Previous track", "Phát hoặc dừng": "Play or pause", "Bài sau": "Next track", "Không đọc được file lời. Cần file .lrc hoặc .srt có mốc thời gian, lưu dạng UTF-8.": "Could not read the lyrics file. It must be a .lrc or .srt file with timestamps, saved as UTF-8.", "Đã nạp lời, còn thiếu file nhạc": "Lyrics loaded, music file missing", "Thư mục này không có file nhạc": "This folder has no music files", "Hàng chờ trống. Bài nào bạn nghe sẽ tự được thêm vào đây.": "The queue is empty. Tracks you play are added here automatically.", "Chưa có album. Bấm \"Thêm album\" rồi chọn một thư mục nhạc.": "No albums yet. Tap \"Add album\" and choose a music folder.", "bài": "tracks", "Xóa khỏi hàng chờ": "Remove from queue", "Sửa thông tin bài": "Edit track info", "Xóa hàng chờ": "Clear queue", "Xóa album": "Delete album", "Sửa album": "Edit album", "Xóa?": "Delete?", "Định dạng này chưa ghi tag được (chỉ mp3, flac, wav).": "This format cannot be tagged yet (mp3, flac, wav only).", "Chỗ này không hỗ trợ tải file. Hãy mở trang này trong claude.ai (không phải link chia sẻ hay file tải về).": "File downloads are not supported here. Open this page in claude.ai (not a shared link or a downloaded file).", "Đang ghi tag...": "Writing tags...", "Đã tải. Giải nén file .zip để lấy file {x} đã ghi tag.": "Downloaded. Unzip the .zip to get the tagged {x} file.", "(WAV không lưu được ảnh bìa)": "(WAV cannot store cover art)", "Bạn đã hủy tải.": "Download cancelled.", "Không ghi được tag: ": "Could not write tags: ", "Đã xóa": "Cleared", "Đang dùng ảnh làm nền, ảnh che màu nền và gradient. Bấm \"Bỏ ảnh\" để quay lại màu.": "Using an image as the background; it covers the background color and gradient. Tap \"Remove image\" to go back to colors."};
-Object.assign(EN,{"Thêm nhạc/lời":"Add music/lyrics","Tạo playlist":"Create playlist","Tên playlist":"Playlist name","Lưu playlist":"Save playlist","Đồng hồ":"Clock","Màu theo bìa":"Cover colors","Đổi màu giao diện theo ảnh bìa bài hát":"Tint the UI from the song's cover art","Hiện khi toàn màn hình":"Show in fullscreen","Ẩn lời":"Hide lyrics","Hiện lời":"Show lyrics","Lặp lại: tắt":"Repeat: off","Lặp lại 1 bài":"Repeat one","Lặp lại cả danh sách":"Repeat all","Lặp lại xáo trộn":"Shuffle repeat","Đã tìm thấy lời online":"Found lyrics online","Không tìm thấy lời online":"No lyrics found online","Chưa có playlist. Bấm \"Tạo playlist\" hoặc nhấn Ctrl+N+P.":"No playlists yet. Tap \"Create playlist\" or press Ctrl+N+P.","Chưa có bài nào. Hãy thêm nhạc hoặc album trước.":"No tracks yet. Add music or an album first.","bài đã chọn":"selected","Chọn ít nhất 1 bài.":"Pick at least 1 track.","Không tìm thấy bài nào của playlist này trong thư viện":"None of this playlist's tracks are in the library","Một số bài không còn trong thư viện":"Some tracks are no longer in the library","Đã thêm {n} album":"Added {n} album(s)","Sửa playlist":"Edit playlist","Xóa playlist":"Delete playlist","Chọn 1 thư mục album, hoặc thư mục cha chứa nhiều album (kéo thả nhiều thư mục cũng được)":"Pick one album folder, or a parent folder holding several albums (dragging several folders works too)"});
+Object.assign(EN,{"Thêm nhạc/lời":"Add music/lyrics","Tạo playlist":"Create playlist","Tên playlist":"Playlist name","Lưu playlist":"Save playlist","Đồng hồ":"Clock","Màu theo bìa":"Cover colors","Đổi màu giao diện theo ảnh bìa bài hát":"Tint the UI from the song's cover art","Hiện khi toàn màn hình":"Show in fullscreen","Ẩn lời":"Hide lyrics","Hiện lời":"Show lyrics","Lặp lại: tắt":"Repeat: off","Lặp lại 1 bài":"Repeat one","Lặp lại cả danh sách":"Repeat all","Lặp lại xáo trộn":"Shuffle repeat","Đã tìm thấy lời online":"Found lyrics online","Không tìm thấy lời online":"No lyrics found online","Chưa có playlist. Bấm \"Tạo playlist\" hoặc nhấn Ctrl+N+P.":"No playlists yet. Tap \"Create playlist\" or press Ctrl+N+P.","Chưa có bài nào. Hãy thêm nhạc hoặc album trước.":"No tracks yet. Add music or an album first.","bài đã chọn":"selected","Chọn ít nhất 1 bài.":"Pick at least 1 track.","Không tìm thấy bài nào của playlist này trong thư viện":"None of this playlist's tracks are in the library","Một số bài không còn trong thư viện":"Some tracks are no longer in the library","Đã thêm {n} album":"Added {n} album(s)","Sửa playlist":"Edit playlist","Hiện bài đang nghe trên Discord":"Show what you're listening to on Discord","Tìm bài, album...":"Search songs, albums...","Bài hát":"Songs","Lưu lời online":"Save online lyrics","Lưu lời tìm được thành file .lrc cạnh bài":"Save found lyrics as a .lrc file next to the song","Thư mục nhạc":"Music folder","Tự quét nhạc và album trong thư mục":"Auto-scan music and albums in the folder","Tự quét lại":"Auto rescan","Quét lại khi thư mục có thay đổi":"Rescan when the folder changes","Đổi thư mục":"Change folder","Quét lại ngay":"Rescan now","Đang quét thư mục nhạc...":"Scanning music folder...","Không đọc được thư mục nhạc":"Couldn't read the music folder","Đã quét: {a} album, {t} bài":"Scanned: {a} albums, {t} tracks","Không đọc được file nhạc (có thể đã bị xóa hoặc di chuyển)":"Couldn't read the music file (it may have been deleted or moved)","Xóa playlist":"Delete playlist","Chọn 1 thư mục album, hoặc thư mục cha chứa nhiều album (kéo thả nhiều thư mục cũng được)":"Pick one album folder, or a parent folder holding several albums (dragging several folders works too)"});
 let LANG=(()=>{try{return localStorage.getItem(LS+'-lang')==='en'?'en':'vi'}catch(e){return 'vi'}})();
 const tr=x=>(LANG==='en'&&EN[x])||x;
 function applyLang(){
@@ -1375,12 +1411,159 @@ try{
 thApply();thUi();applyLang();
 rpUi();ldUi();lyUi();clkUi();plLoad();renderPl();
 
+/* ===== Phím media / điều khiển hệ thống (khay, phím media, thông báo phát nhạc) ===== */
+var msT=0,msK='';
+function mediaAct(a){
+  const n=Date.now();if(n-msT<300)return;msT=n;
+  if(a==='toggle'){if(au.paused)au.play().catch(()=>{});else au.pause()}
+  else if(a==='play')au.play().catch(()=>{});
+  else if(a==='pause')au.pause();
+  else if(a==='next'){const i=nextIdx();if(i>=0)playTrack(i)}
+  else if(a==='prev')$('pv').click();
+}
+if(window.lyricApp&&window.lyricApp.onMedia)window.lyricApp.onMedia(mediaAct);
+if('mediaSession' in navigator){
+  const ms=navigator.mediaSession;
+  [['play','play'],['pause','pause'],['nexttrack','next'],['previoustrack','prev']].forEach(([k,a])=>{try{ms.setActionHandler(k,()=>mediaAct(a))}catch(e){}});
+  try{ms.setActionHandler('seekto',d=>{if(d.seekTime!=null&&au.duration)au.currentTime=d.seekTime})}catch(e){}
+}
+function msUpdate(){
+  if(!('mediaSession' in navigator)||!window.MediaMetadata)return;
+  const t=Q[qi];if(!t||!au.src)return;
+  const title=mf(t,'t')||t.n,artist=mf(t,'ar')||'',album=mf(t,'al')||'';
+  const k=title+'|'+artist+'|'+album+'|'+(coverUrl||'');
+  if(k===msK)return;msK=k;
+  try{navigator.mediaSession.metadata=new MediaMetadata({title,artist,album,artwork:coverUrl?[{src:coverUrl,sizes:'512x512'}]:[]})}catch(e){}
+}
+
+/* ===== Discord Rich Presence (chỉ app desktop; Discord phải đang mở) ===== */
+var rpcT=0,rpcOn=false;
+function rpcSend(){
+  const A=window.lyricApp;if(!A||!A.setPresence)return;
+  const t=Q[qi];
+  let p=null;
+  if(LB.rpc&&rpcOn&&t&&au.src&&isFinite(au.duration)&&au.duration>0)
+    p={title:mf(t,'t')||t.n,artist:mf(t,'ar')||'',playing:!au.paused,pos:au.currentTime,dur:au.duration};
+  A.setPresence(p);
+}
+function rpcSched(){clearTimeout(rpcT);rpcT=setTimeout(rpcSend,1200)}
+au.addEventListener('play',()=>{rpcOn=true});
+['play','pause','seeked','loadedmetadata','ended','emptied'].forEach(ev=>au.addEventListener(ev,rpcSched));
+
+/* ===== Thư mục nhạc mặc định: tự quét album (chỉ app desktop) ===== */
+/* Bài quét được chỉ lưu đường dẫn (lazy); file thật được đọc khi phát */
+let plTok=0;
+async function realize(f){
+  if(!f||!f.lazy)return f;
+  const u8=await window.lyricApp.readFile(f.path);
+  const r=new File([u8],f.name,{type:f.type||''});r._p=f.path;return r;
+}
+const LB={on:true,auto:true,save:true,rpc:true};
+let lbBusy=false,lbAgain=false,lbDir='';
+try{const v=JSON.parse(localStorage.getItem(LS+'-libcfg')||'null');if(v){LB.on=v.on!==false;LB.auto=v.auto!==false;LB.save=v.save!==false;LB.rpc=v.rpc!==false}}catch(e){}
+const lbSave=()=>{try{localStorage.setItem(LS+'-libcfg',JSON.stringify(LB))}catch(e){}};
+const lbHash=s=>{let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36)};
+const lbIsScan=id=>String(id).startsWith('scan-');
+const lbSt=m=>{$('lsSt').textContent=m||''};
+function lsUi(){
+  $('lsOn').checked=LB.on;$('lsAuto').checked=LB.auto;$('lsSave').checked=LB.save;$('lsRpc').checked=LB.rpc;$('lsAuto').disabled=!LB.on;
+  $('lsNow').disabled=!LB.on||lbBusy;$('lsDir').textContent=lbDir;
+}
+async function lbCover(al){
+  try{
+    const u8=await window.lyricApp.readFile(al.cp);
+    const bm=await createImageBitmap(new Blob([u8]));
+    const k=Math.min(1,600/Math.max(bm.width,bm.height));
+    const c=document.createElement('canvas');c.width=Math.max(1,Math.round(bm.width*k));c.height=Math.max(1,Math.round(bm.height*k));
+    c.getContext('2d').drawImage(bm,0,0,c.width,c.height);
+    if(bm.close)bm.close();
+    const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.85));
+    if(b)al.cover=new File([b],'cover.jpg',{type:'image/jpeg'});
+  }catch(e){}
+}
+async function libSync(){
+  const A=window.lyricApp;
+  if(!A||!LB.on)return;
+  if(lbBusy){lbAgain=true;return}
+  lbBusy=true;lsUi();lbSt(tr('Đang quét thư mục nhạc...'));
+  try{
+    const gi=await A.libGet();lbDir=(gi&&gi.dir)||'';lsUi();
+    const res=await A.libScan();
+    if(!res){lbSt(tr('Không đọc được thư mục nhạc'));return}
+    const old=new Map(ALB.filter(a=>lbIsScan(a.id)).map(a=>[a.id,a]));
+    const nw=res.map(d=>{
+      const id='scan-'+lbHash(d.dir),o=old.get(id);
+      const sig=d.cover?d.cover.path+'|'+d.cover.size+'|'+d.cover.mtime:'';
+      const tracks=d.tracks.map(t=>({
+        n:t.name.replace(/\.[^.]+$/,''),
+        a:{lazy:true,path:t.path,name:t.name,size:t.size,type:t.type},
+        l:t.lrc?{lazy:true,path:t.lrc.path,name:t.lrc.name,size:t.lrc.size,type:''}:null
+      }));
+      return {id,name:d.name,src:'scan',dir:d.dir,sig,cp:d.cover?d.cover.path:'',cover:(o&&o.sig===sig&&o.cover)?o.cover:null,tracks};
+    });
+    ALB=ALB.filter(a=>!lbIsScan(a.id)).concat(nw);
+    const cur=Q[qi];
+    Q=Q.filter(t=>{
+      if(!t.ref||!lbIsScan(t.ref[0]))return true;
+      const al=ALB.find(x=>x.id===t.ref[0]);if(!al)return false;
+      const i=al.tracks.findIndex(x=>x.n===t.n&&x.a.size===t.a.size);if(i<0)return false;
+      t.ref=[al.id,i];t.a=al.tracks[i].a;t.l=al.tracks[i].l;return true;
+    });
+    qi=cur?Q.indexOf(cur):-1;
+    idbSet('alb',ALB);saveQ();renderAl();renderQ();
+    const n=res.reduce((s,d)=>s+d.tracks.length,0);
+    lbSt(tr('Đã quét: {a} album, {t} bài').replace('{a}',res.length).replace('{t}',n));
+    let k=0;
+    for(const al of nw){
+      if(al.cover||!al.cp)continue;
+      await lbCover(al);
+      if(++k%8===0)renderAl();
+    }
+    if(k){idbSet('alb',ALB);renderAl()}
+  }catch(e){lbSt(tr('Không đọc được thư mục nhạc'))}
+  finally{lbBusy=false;lsUi();if(lbAgain){lbAgain=false;libSync()}}
+}
+$('lsOn').onchange=e=>{
+  if(!window.lyricApp)return;
+  LB.on=e.target.checked;lbSave();
+  window.lyricApp.libWatch(LB.on&&LB.auto);
+  if(LB.on)libSync();
+  else{
+    ALB=ALB.filter(a=>!lbIsScan(a.id));
+    const cur=Q[qi];Q=Q.filter(t=>!t.ref||!lbIsScan(t.ref[0]));qi=cur?Q.indexOf(cur):-1;
+    idbSet('alb',ALB);saveQ();renderAl();renderQ();lbSt('');
+  }
+  lsUi();
+};
+$('lsAuto').onchange=e=>{
+  if(!window.lyricApp)return;
+  LB.auto=e.target.checked;lbSave();window.lyricApp.libWatch(LB.on&&LB.auto);
+};
+$('lsPick').onclick=async()=>{
+  if(!window.lyricApp)return;
+  const d=await window.lyricApp.libPick();
+  if(d){lbDir=d;lsUi();libSync()}
+};
+$('lsNow').onclick=()=>libSync();
+$('lsSave').onchange=e=>{LB.save=e.target.checked;lbSave()};
+$('lsRpc').onchange=e=>{LB.rpc=e.target.checked;lbSave();rpcSend()};
+let sqT=0;
+$('sq').oninput=()=>{clearTimeout(sqT);sqT=setTimeout(()=>{SQ=norm($('sq').value.trim());renderQ();renderAl();renderPl()},120)};
+function libInit(){
+  const A=window.lyricApp;if(!A)return;
+  A.onLibChanged(()=>{if(LB.on&&LB.auto)libSync()});
+  A.libWatch(LB.on&&LB.auto);
+  A.libGet().then(i=>{lbDir=(i&&i.dir)||'';lsUi()}).catch(()=>{});
+  lsUi();
+  if(LB.on)libSync();
+}
+
 /* ===== Mở file nhạc từ Windows (Open with / Default apps) - chỉ có trong app desktop ===== */
 if(window.lyricApp){
   let ob=[],ot=0;
   window.lyricApp.onOpenFile(async info=>{
     try{
-      const mk=async f=>new File([await window.lyricApp.readFile(f.path)],f.name,{type:f.type||''});
+      const mk=async f=>{const r=new File([await window.lyricApp.readFile(f.path)],f.name,{type:f.type||''});r._p=f.path;return r};
       ob.push(await mk(info.audio));
       if(info.lyric)ob.push(await mk(info.lyric));
       clearTimeout(ot);
@@ -1406,7 +1589,7 @@ if(window.lyricApp){
     },{once:true});
   }
   await load([a,l].filter(Boolean),true);
-})().finally(()=>{if(window.lyricApp)window.lyricApp.ready()});
+})().finally(()=>{if(window.lyricApp){window.lyricApp.ready();libInit()}});
 </script>
 </body>
 </html>
