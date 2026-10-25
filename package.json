@@ -1,7 +1,7 @@
 {
   "name": "lyric",
   "productName": "LYRIC",
-  "version": "1.0.2",
+  "version": "1.0.0",
   "description": "LYRIC - LYRIC YOUR SONGS",
   "main": "main.js",
   "scripts": {
@@ -11,7 +11,14 @@
   "build": {
     "appId": "com.lyric.player",
     "productName": "LYRIC",
-    "files": ["main.js", "index.html"],
+    "files": ["main.js", "preload.js", "index.html"],
+    "fileAssociations": [
+      {
+        "ext": ["mp3", "flac", "wav", "m4a", "ogg", "opus", "aac"],
+        "name": "Audio file",
+        "description": "Audio file"
+      }
+    ],
     "win": {
       "icon": "icon.png",
       "target": [{ "target": "nsis", "arch": ["x64"] }]
