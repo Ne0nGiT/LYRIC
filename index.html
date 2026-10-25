@@ -1375,6 +1375,20 @@ try{
 thApply();thUi();applyLang();
 rpUi();ldUi();lyUi();clkUi();plLoad();renderPl();
 
+/* ===== Mở file nhạc từ Windows (Open with / Default apps) - chỉ có trong app desktop ===== */
+if(window.lyricApp){
+  let ob=[],ot=0;
+  window.lyricApp.onOpenFile(async info=>{
+    try{
+      const mk=async f=>new File([await window.lyricApp.readFile(f.path)],f.name,{type:f.type||''});
+      ob.push(await mk(info.audio));
+      if(info.lyric)ob.push(await mk(info.lyric));
+      clearTimeout(ot);
+      ot=setTimeout(()=>{const x=ob;ob=[];const one=x.filter(isA).length===1,r=ingest(x);if(one)Promise.resolve(r).then(()=>au.play().catch(()=>{}))},700);
+    }catch(e){}
+  });
+}
+
 (async()=>{
   loadSettings();thLoadImg();
   rpUi();ldUi();lyUi();
@@ -1392,7 +1406,7 @@ rpUi();ldUi();lyUi();clkUi();plLoad();renderPl();
     },{once:true});
   }
   await load([a,l].filter(Boolean),true);
-})();
+})().finally(()=>{if(window.lyricApp)window.lyricApp.ready()});
 </script>
 </body>
 </html>
